@@ -1,6 +1,7 @@
 /*
  * Name: libDHT
  * License: MIT license
+ * Location: https://github.com/ADiea/libDHT
  *
  * 7/02/15 ADiea:	dew point algorithms
  * 6/25/15 ADiea: 	pullup option
@@ -205,6 +206,18 @@ double DHT::computeDewPoint(float tempCelsius, float percentHumidity, uint8_t al
 
 	return result;
 }
+
+float DHT::comfortRatio(ComfortState& comfort)
+{
+	float ratio = NAN;
+
+	comfort = 0;
+
+
+
+	return ratio;
+}
+
 void DHT::updateInternalCache()
 {
 	float f;

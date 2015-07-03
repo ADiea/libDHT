@@ -1,6 +1,7 @@
 /*
  * Name: libDHT
  * License: MIT license
+ * Location: https://github.com/ADiea/libDHT
  *
  * 7/02/15 ADiea:	dew point algorithms
  * 6/25/15 ADiea: 	pullup option
@@ -40,13 +41,47 @@
 #define DEW_ACCURATE_FAST 2
 #define DEW_FASTEST 3
 
+// Reference: http://epb.apogee.net/res/refcomf.asp
+enum ComfortState
+{
+	Comfort_OK = 0,
+	Comfort_TooHot = 1,
+	Comfort_TooCold = 2,
+	Comfort_TooDry = 4,
+	Comfort_TooHumid = 8,
+	Comfort_HotAndHumid = 9,
+	Comfort_HotAndDry = 5,
+	Comfort_ColdAndHumid = 10,
+	Comfort_ColdAndDry = 6
+};
+
 
 class DHT
 {
 public:
 	DHT(uint8_t pin, uint8_t type, boolean pullup = false, uint16_t maxIntervalRead = DSHEET_READ_INTERVAL)
 		: m_kSensorPin(pin), m_kSensorType(type),
-		  m_bPullupEnabled(pullup), m_firstRead(true), m_lastreadtime(0), m_maxIntervalRead(maxIntervalRead){};
+		  m_bPullupEnabled(pullup), m_firstRead(true), m_lastreadtime(0), m_maxIntervalRead(maxIntervalRead)
+	{
+		//In computing these constants the following reference was used http://epb.apogee.net/res/refcomf.asp
+		//It was simplified as 4 straight lines and added very little skew on the vertical lines (+0.1 on x for C,D)
+		//The for points used are(from top left, clock wise)
+		//A(30%, 30*C) B(70%, 26.2*C) C(70.1%, 20.55*C) D(30.1%, 22.22*C)
+		//On the X axis we have the rel humidity in % and on the Y axis the temperature in *C
+
+		//Too hot line AB
+		m_tooHot_m = -0.095;
+		m_tooHot_b = 32.85;
+		//Too humid line BC
+		m_tooHumid_m =  -56.5;
+		m_tooHumid_b = 3981.2;
+		//Too cold line DC
+		m_tooCold_m = -0.04175;
+		m_tooHCold_b = 23.476675;
+		//Too dry line AD
+		m_tooDry_m = -77.8;
+		m_tooDry_b = 2364;
+	};
 
 	void begin(void);
 
@@ -61,6 +96,20 @@ public:
 	float computeHeatIndexC(float tempCelsius, float percentHumidity); //TODO:test accuracy against computeHeatIndexF
 	float computeHeatIndexF(float tempFahrenheit, float percentHumidity);
 	double computeDewPoint(float tempCelsius, float percentHumidity, uint8_t algType = DEW_ACCURATE);
+
+	float comfortRatio(ComfortState* comfort);
+
+	inline ComfortState isTooHot(float tCelsius, float humidity)
+		{return (tCelsius > (humidity * m_tooHot_m + m_tooHot_b)) ? Comfort_TooHot : Comfort_OK;}
+	inline ComfortState isTooHumid(float tCelsius, float humidity)
+		{return (tCelsius > (humidity * m_tooHumid_m + m_tooHumid_b)) ? Comfort_TooHumid : Comfort_OK;}
+	inline ComfortState isTooCold(float tCelsius, float humidity)
+		{return (tCelsius < (humidity * m_tooCold_m + m_tooHCold_b)) ? Comfort_TooCold : Comfort_OK;}
+	inline ComfortState isTooDry(float tCelsius, float humidity)
+		{return (tCelsius < (humidity * m_tooDry_m + m_tooDry_b)) ? Comfort_TooDry : Comfort_OK;}
+
+
+
 private:
 	boolean read(void);
 	void updateInternalCache();
@@ -75,6 +124,12 @@ private:
 	//However if reads are done at greater intervals the sensor's output will be less subject to self-heating
 	//Reference: http://www.kandrsmith.org/RJS/Misc/dht_sht_how_fast.html
 	uint16_t m_maxIntervalRead;
+
+	//Represent the 4 lines dry, humid, hot, cold, using the y = mx + b formula
+	float m_tooHot_m, m_tooHot_b;
+	float m_tooCold_m, m_tooHCold_b;
+	float m_tooDry_m, m_tooDry_b;
+	float m_tooHumid_m, m_tooHumid_b;
 
 	float m_lastTemp, m_lastHumid;
 };
