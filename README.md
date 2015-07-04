@@ -17,14 +17,18 @@ Arduino compatible DHT 11/22, AM2302 lib with dewpoint, heat-index and other goo
 
 | Platform | 				SensorReading(ms) | 	DewPoint-Accurate&Fast(ms) |
 |:--------:|:--------------------------------:|:------------------------------:|
-| ESP8266-ESP12 @ 80Mhz |	5.6ms(CPU independent) |					0.5ms |
+| ESP8266-ESP12 @ 80Mhz |	5.6 (CPU independent) |					0.5  |
 
 
 ## Credits
 
 Based on *DHT-sensor-library* https://github.com/adafruit/DHT-sensor-library
+
 Based on *arduino-DHT* https://github.com/markruys/arduino-DHT
+
 Based on *DHTlib* https://github.com/RobTillaart/Arduino/tree/master/libraries/DHTlib
+
+Used *Sming Framework* for the ESP8266 platform https://github.com/anakod/Sming
 
 **This was tested on an ESP8266 module(ESP-12) running at 80Mhz.**
 
