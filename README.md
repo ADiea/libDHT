@@ -3,15 +3,17 @@ Arduino compatible DHT 11/22, AM2302 lib with dewpoint, heat-index and other goo
 
 ##Features
 
-1. Autodetection of sensor type
-2. Read humidity and temperature in one function call.
-3. Determine heat index in *C or *F
-4. Determine dewpoint with various algorithms(speed vs accuracy)
-5. Determine thermal comfort
-  * Empiric comfort function based on comfort profiles
-  * (TODO) Multiple comfort profiles. Default based on http://epb.apogee.net/res/refcomf.asp
-  * Determine if it's too cold, hot, humid, dry, based on current comfort profile
+1. Autodetection of sensor type.
+2. Determine heat index.
+3. Determine dewpoint with various algorithms(speed vs accuracy).
+4. Determine thermal comfort:
+	* Empiric comfort function based on comfort profiles(parametric lines)
+	* Multiple comfort profiles possible. Default based on http://epb.apogee.net/res/refcomf.asp
+	* Determine if it's too cold, hot, humid, dry, based on current comfort profile
+5. Should be compatible with both pre 1.0.1 and later Arduino versions - NOT TESTED
 6. Optimized for sensor read speed(~5ms for DHT22), stack and code size.
+	*Select output between *C(smallest code size), *F, or runtime-defined via fct param.
+7. Compatible w/ Adafruit's lib but can also read both humidity and temp. at the same time.
 
 ## Tested on
 
