@@ -15,9 +15,9 @@ Arduino compatible DHT 11/22, AM2302 lib with dewpoint, heat-index and other goo
 
 ## Statistics
 
-Platform| 				SensorReading(ms)| 	DewPoint-Accurate&Fast(ms)
-|						(CPU speed should not matter here)|	
-ESP8266-ESP12 @ 80Mhz|	5.6ms|					0.5ms	
+| Platform | 				SensorReading(ms) | 	DewPoint-Accurate&Fast(ms) |
+|:--------:|:--------------------------------:|:------------------------------:|
+| ESP8266-ESP12 @ 80Mhz |	5.6ms(CPU independent) |					0.5ms |
 
 
 ## Credits
