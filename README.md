@@ -30,6 +30,8 @@ Based on *DHTlib* https://github.com/RobTillaart/Arduino/tree/master/libraries/D
 
 Used *Sming Framework* for the ESP8266 platform https://github.com/anakod/Sming
 
+## Disclaimer
+
 **This was tested on an ESP8266 module(ESP-12) running at 80Mhz.**
 
 **_This is in theory compatible with Arduino but untested..._**
