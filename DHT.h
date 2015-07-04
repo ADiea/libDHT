@@ -1,10 +1,11 @@
 /*
  * Name: libDHT
- * License: MIT license. No warranty.
+ * License: MIT license. See details in DHT.cpp.
  * Location: https://github.com/ADiea/libDHT
  * Maintainer: ADiea (https://github.com/ADiea)
  *
- * Descr: Arduino compatible DHT 11/22 lib with dewpoint and heat index functions.
+ * Descr: Arduino compatible DHT 11/22, AM2302 lib with dewpoint,
+ *        heat-index and other goodies.
  *
  * Features & History:
  * See DHT.cpp
