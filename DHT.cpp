@@ -4,19 +4,21 @@
  * Location: https://github.com/ADiea/libDHT
  * Maintainer: ADiea (https://github.com/ADiea)
  *
- * Descr: Arduino compatible DHT 11/22 lib with dewpoint and heat index functions.
+ * Descr.: Arduino compatible DHT 11/22 lib with dewpoint and heat index functions.
  *
  * Features:
- *	1. Read humidity and temperature in one function call.
- *	2. Determine heat index in *C or *F
- *	3. Determine dewpoint with various algorithms(speed vs accuracy)
- *	4. Determine thermal comfort
- *		4.1. Empiric comfort function based on comfort profiles
- *		4.2. Multiple comfort profiles. Default based on http://epb.apogee.net/res/refcomf.asp
- *		4.3. Determine if it's to cold, hot, humid, dry based on current comfort profile
+ *  1. Autodetection of sensor type
+ *	2. Read humidity and temperature in one function call.
+ *	3. Determine heat index in *C or *F
+ *	4. Determine dewpoint with various algorithms(speed vs accuracy)
+ *	5. Determine thermal comfort
+ *		* Empiric comfort function based on comfort profiles
+ *		* Multiple comfort profiles. Default based on http://epb.apogee.net/res/refcomf.asp
+ *		* Determine if it's too cold, hot, humid, dry, based on current comfort profile
  *
+ * History:
  * x/xx/xx -----:	TODO: Comfort profiles
- * 7/04/15 ADiea:	[experimental] comfort function; code reorganization
+ * 7/04/15 ADiea:	[experimental] comfort function; code reorganization; Autodetection;
  * 7/02/15 ADiea:	dew point algorithms
  * 6/25/15 ADiea: 	pullup option; read temp and humidity in one function call
  *  	 	 	 	cache converted value for last temp and humid
@@ -38,20 +40,49 @@ void DHT::begin(void)
 	//Delay 250ms at least before the first read, so the sensor sees a stable
 	//pin HIGH output
 	delay(250);
+
+	/*Autodetect sensor*/
+	if(DHT_AUTO == m_kSensorType)
+	{
+		//set small wakeup to detect a DHT11 and start a read
+		m_wakeupTimeMs = WAKEUP_DHT22;
+		read();
+
+		/*If no timeout error, must be a DHT22 type sensor*/
+		if(m_lastError != errDHT_Timeout)
+		{
+			m_kSensorType = DHT22;
+			if (READ_INTERVAL_DONT_CARE == m_maxIntervalRead)
+			{
+				m_maxIntervalRead = READ_INTERVAL_DHT22_DSHEET;
+			}
+			m_wakeupTimeMs = WAKEUP_DHT22;
+		}
+		else /* If sensor timedout it's probably a DHT11 */
+		{
+			m_kSensorType = DHT11;
+			if (READ_INTERVAL_DONT_CARE == m_maxIntervalRead)
+			{
+				m_maxIntervalRead = READ_INTERVAL_DHT11_DSHEET;
+			}
+			m_wakeupTimeMs = WAKEUP_DHT11;
+		}
+	}
 }
 
 float DHT::readTemperature(bool bFarenheit/* = false*/)
 {
-	float f = NAN;
-	readTempAndHumidity(&f, NULL, bFarenheit);
-	return f;
+	read();
+	if (NAN != m_lastTemp && bFarenheit)
+		return convertCtoF(m_lastTemp);
+	else
+		return m_lastTemp;
 }
 
 float DHT::readHumidity(void)
 {
-	float f = NAN;
-	readTempAndHumidity(NULL, &f);
-	return f;
+	read();
+	return m_lastHumid;
 }
 
 bool DHT::readTempAndHumidity(float* temp, float* humid, bool bFarenheit/* = false*/)
@@ -103,14 +134,20 @@ float DHT::getHeatIndexC(float tempCelsius, float percentHumidity)
 			+ 0.00072546 * tempCelsius * h2 + -0.00000358 * t2C * h2;
 }
 
-double DHT::getDewPoint(float tempCelsius, float percentHumidity, uint8_t algType /*= DEW_ACCURATE*/)
+double DHT::getDewPoint(float tempCelsius, float percentHumidity, uint8_t algType /*= DEW_ACCURATE_FAST*/)
 {
 	double result = NAN;
 	percentHumidity = percentHumidity * 0.01;
 
 	switch(algType)
 	{
-		case DEW_ACCURATE: /* 6.040ms @ 80Mhz Accuracy +0.00 */
+		/*xx/xx/xxxx; x.xxxms @ xxMhz; Accuracy xx.xx; Platform xxxxxxx; Samples xxxx */
+		/*Conclusion: */
+
+	    /*04/07/2015; 1.210ms @ 80Mhz; Accuracy +0.00; Platform ESP8266; Samples 2100 */
+		/*Conclusion: Accurate, resonably fast.
+		 *            Tested on a few samples against http://www.decatur.de/javascript/dew/ */
+		case DEW_ACCURATE:
 
 		{
 			/* 01/JUL/2015 ADiea: ported from FORTRAN http://wahiduddin.net/calc/density_algorithms.htm */
@@ -149,7 +186,12 @@ double DHT::getDewPoint(float tempCelsius, float percentHumidity, uint8_t algTyp
 		}
 		break;
 
-		case DEW_ACCURATE_FAST: /* 5.725ms @ 80Mhz Accuracy +0.01 */
+	    /*xx/xx/xxxx; x.xxxms @ xxMhz; Accuracy xx.xx; Platform xxxxxxx; Samples xxxx */
+		/*Conclusion: */
+
+	    /*04/07/2015; 0.522ms @ 80Mhz; Accuracy -0.001; Platform ESP8266; Samples 2100 */
+		/*Conclusion: Best choice, 0.001*C deviation with double speed */
+		case DEW_ACCURATE_FAST:
 
 		{
 			/*Saturation vapor pressure is calculated by the datalogger
@@ -172,8 +214,12 @@ double DHT::getDewPoint(float tempCelsius, float percentHumidity, uint8_t algTyp
 		}
 		break;
 
-		case DEW_FAST: /* 1.479 ms Accuracy -0.04 */
+	    /*xx/xx/xxxx; x.xxxms @ xxMhz; Accuracy xx.xx; Platform xxxxxxx; Samples xxxx */
+		/*Conclusion: */
 
+	    /*04/07/2015; 0.723ms @ 80Mhz; Accuracy -0.06; Platform ESP8266; Samples 2100 */
+		/*Conclusion: Worst choice. Very slow on this architecture, and inaccurate */
+		case DEW_FAST:
 		{
 			/* 01/JUL/2015 ADiea: ported from FORTRAN http://wahiduddin.net/calc/density_algorithms.htm */
 			/*
@@ -198,7 +244,12 @@ double DHT::getDewPoint(float tempCelsius, float percentHumidity, uint8_t algTyp
 		}
 		break;
 
-		case DEW_FASTEST: /* 1.415 ms @ 80Mhz Accuracy +0.10 */
+	    /*xx/xx/xxxx; x.xxxms @ xxMhz; Accuracy xx.xx; Platform xxxxxxx; Samples xxxx */
+		/*Conclusion: */
+
+	    /*04/07/2015; 0.522ms @ 80Mhz; Accuracy +0.03; Platform ESP8266; Samples 2100 */
+		/*Conclusion: Bad choice. As fast as ACCURATEFAST but 30 times more inaccurate */
+		case DEW_FASTEST:
 		{
 			/* http://en.wikipedia.org/wiki/Dew_point */
 			double a = 17.271;
@@ -217,7 +268,7 @@ float DHT::getComfortRatio(float tCelsius, float humidity, ComfortState& comfort
 	float ratio = 100; //100%
 	float distance = 0;
 	float kTempFactor = 3; //take into account the slope of the lines
-	float kHumidFactor = 0.03; //take into account the slope of the lines
+	float kHumidFactor = 0.1; //take into account the slope of the lines
 	uint8_t tempComfort = 0;
 	
 	comfort = Comfort_OK;
@@ -281,7 +332,7 @@ void DHT::updateInternalCache()
 			m_lastTemp = ((uint32_t)(m_data[2] & 0x7F)<<8 | m_data[3]) / 10.0f;
 			if (m_data[2] & 0x80)
 			{
-				m_lastTemp *= -1;
+				m_lastTemp = -m_lastTemp;
 			}
 			/*Humidity*/
 			m_lastHumid = (((uint32_t)m_data[0])<<8 | m_data[1]) / 10.0f;
@@ -292,25 +343,30 @@ void DHT::updateInternalCache()
 	}
 }
 
-boolean DHT::read(void)
+bool DHT::read(void)
 {
 	uint8_t laststate = HIGH;
 	uint8_t counter = 0;
 	uint8_t j = 0, i;
+	unsigned long time = millis();
 
 	//Determine if it's appropiate to read the sensor, or return data from cache
-	if ((millis() - m_lastreadtime) < m_maxIntervalRead)
+	if ((time - m_lastreadtime) < m_maxIntervalRead && (errDHT_OK == m_lastError))
 	{
 		return true; // will use last data from cache
 	}
-	m_lastreadtime = millis();
+	m_lastreadtime = time;
 
+	//reset internal data and invalidate cache
 	m_data[0] = m_data[1] = m_data[2] = m_data[3] = m_data[4] = 0;
+	m_lastError = errDHT_Other;
+	m_lastTemp = NAN;
+	m_lastHumid = NAN;
 
-	//Pull the pin low for ~20 milliseconds
+	//Pull the pin low for m_wakeupTimeMs milliseconds
 	pinMode(m_kSensorPin, OUTPUT);
 	digitalWrite(m_kSensorPin, LOW);
-	delay(20);
+	delay(m_wakeupTimeMs);
 	//clear interrupts
 	cli();
 	//Make pin input and activate pullup
@@ -340,7 +396,10 @@ boolean DHT::read(void)
 		laststate = digitalRead(m_kSensorPin);
 
 		if (counter == 255)
+		{
+			m_lastError = errDHT_Timeout;
 			break;
+		}
 
 		// ignore first 3 transitions
 		if ((i >= 4) && (i % 2 == 0))
@@ -377,7 +436,12 @@ boolean DHT::read(void)
 	    (m_data[4] == ((m_data[0] + m_data[1] + m_data[2] + m_data[3]) & 0xFF)))
 	{
 		updateInternalCache();
+		m_lastError = errDHT_OK;
 		return true;
+	}
+	else
+	{
+		m_lastError = errDHT_Checksum;
 	}
 
 	return false;

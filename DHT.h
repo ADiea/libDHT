@@ -6,22 +6,8 @@
  *
  * Descr: Arduino compatible DHT 11/22 lib with dewpoint and heat index functions.
  *
- * Features:
- *	1. Read humidity and temperature in one function call.
- *	2. Determine heat index in *C or *F
- *	3. Determine dewpoint with various algorithms(speed vs accuracy)
- *	4. Determine thermal comfort
- *		4.1. Empiric comfort function based on comfort profiles
- *		4.2. Multiple comfort profiles. Default based on http://epb.apogee.net/res/refcomf.asp
- *		4.3. Determine if it's to cold, hot, humid, dry based on current comfort profile
- *
- * x/xx/xx -----:	TODO: Comfort profiles
- * 7/04/15 ADiea:	[experimental] comfort function; code reorganization
- * 7/02/15 ADiea:	dew point algorithms
- * 6/25/15 ADiea: 	pullup option; read temp and humidity in one function call
- *  	 	 	 	cache converted value for last temp and humid
- * 6/20/15 cloned from https://github.com/adafruit/DHT-sensor-library
- * -/--/-- written by Adafruit Industries
+ * Features & History:
+ * See DHT.cpp
  */
 
 #ifndef DHT_H
@@ -34,24 +20,36 @@
 
 #define DHT_DEBUG 0 //Change to 1 for debug output
 
-#define ONE_DURATION_THRESH_US 30 //From datasheet: '0' if HIGH lasts 26-28us,
-								  //				'1' if HIGH lasts 70us
+/*From datasheet: http://www.micro4you.com/files/sensor/DHT11.pdf
+ * '0' if HIGH lasts 26-28us,
+ * '1' if HIGH lasts 70us
+ */
+#define ONE_DURATION_THRESH_US 30
+
+#define DHTLIB_DHT11_WAKEUP         18
+#define DHTLIB_DHT22_WAKEUP         5
 
 // how many timing transitions we need to keep track of. 2 * number bits + extra
 #define MAXTIMINGS 85
 
+#define DHT_AUTO 0
 #define DHT11 11
 #define DHT22 22
 #define DHT21 21
 #define AM2301 21
 
-#define DSHEET_READ_INTERVAL 2000
-#define LONG_READ_INTERVAL 4000
+#define READ_INTERVAL_DHT11_DSHEET 1000
+#define READ_INTERVAL_DHT22_DSHEET 2000
+#define READ_INTERVAL_DONT_CARE 2200 /*safe value*/
+#define READ_INTERVAL_LONG 4000
 
 #define DEW_ACCURATE 0
 #define DEW_FAST 1
 #define DEW_ACCURATE_FAST 2
 #define DEW_FASTEST 3
+
+#define WAKEUP_DHT11 18
+#define WAKEUP_DHT22 1
 
 // Reference: http://epb.apogee.net/res/refcomf.asp
 enum ComfortState
@@ -67,15 +65,43 @@ enum ComfortState
 	Comfort_ColdAndDry = 6
 };
 
+enum ErrorDHT
+{
+	errDHT_OK = 0,
+	errDHT_Timeout,
+	errDHT_Checksum,
+	errDHT_Other,
+};
 
 class DHT
 {
 public:
-	DHT(uint8_t pin, uint8_t type, boolean pullup = false,
-			uint16_t maxIntervalRead = DSHEET_READ_INTERVAL)
+	DHT(uint8_t pin, uint8_t type = DHT_AUTO, boolean pullup = false,
+			uint16_t maxIntervalRead = READ_INTERVAL_DONT_CARE)
 		: m_kSensorPin(pin), m_kSensorType(type),
 		  m_bPullupEnabled(pullup), m_lastreadtime(0), m_maxIntervalRead(maxIntervalRead)
 	{
+		m_lastError = errDHT_Other;
+		m_lastTemp = NAN;
+		m_lastHumid = NAN;
+
+		if (DHT11 == m_kSensorType)
+		{
+			if (READ_INTERVAL_DONT_CARE == maxIntervalRead)
+			{
+				m_maxIntervalRead = READ_INTERVAL_DHT11_DSHEET;
+			}
+			m_wakeupTimeMs = WAKEUP_DHT11;
+		}
+		else if (DHT22 == m_kSensorType || DHT21 == m_kSensorType)
+		{
+			if (READ_INTERVAL_DONT_CARE == maxIntervalRead)
+			{
+				m_maxIntervalRead = READ_INTERVAL_DHT22_DSHEET;
+			}
+			m_wakeupTimeMs = WAKEUP_DHT22;
+		}
+
 		//In computing these constants the following reference was used
 		//http://epb.apogee.net/res/refcomf.asp
 		//It was simplified as 4 straight lines and added very little skew on
@@ -110,7 +136,7 @@ public:
 	float getHeatIndexC(float tempCelsius, float percentHumidity);
 	float getHeatIndexF(float tempFahrenheit, float percentHumidity);
 	double getDewPoint(float tempCelsius, float percentHumidity,
-			uint8_t algType = DEW_ACCURATE);
+			uint8_t algType = DEW_ACCURATE_FAST);
 
 	float getComfortRatio(float tCelsius, float humidity, ComfortState& comfort);
 
@@ -123,8 +149,9 @@ public:
 	inline bool isTooDry(float tCelsius, float humidity)
 		{return (tCelsius < (humidity * m_tooDry_m + m_tooDry_b));}
 
+	inline ErrorDHT getm_lastError() { return m_lastError; }
 private:
-	boolean read(void);
+	bool read(void);
 	void updateInternalCache();
 	
 	inline float distanceTooHot(float tCelsius, float humidity)
@@ -139,7 +166,10 @@ private:
 	uint8_t m_kSensorPin, m_kSensorType;
 	uint8_t m_data[6];
 	unsigned long m_lastreadtime;
+	uint8_t m_wakeupTimeMs;
+
 	boolean m_bPullupEnabled;
+	ErrorDHT m_lastError;
 
 	//The datasheet advises to read no more than one every 2 seconds.
 	//However if reads are done at greater intervals the sensor's output
