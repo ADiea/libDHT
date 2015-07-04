@@ -1,4 +1,4 @@
-# libDHT - yet anothe DHT lib
+# libDHT - yet another DHT lib
 Arduino compatible DHT 11/22, AM2302 lib with dewpoint, heat-index and other goodies. 
 
 ##Features
@@ -17,11 +17,11 @@ Arduino compatible DHT 11/22, AM2302 lib with dewpoint, heat-index and other goo
 
 | Platform | 				SensorReading*) (ms) | 	DewPoint Accurate-Fast (ms) |
 |:--------:|:--------------------------------:|:------------------------------:|
-| ESP8266-ESP12 @ 80Mhz |	5.6 - DHT22 |					0.5  |
+| ESP8266-ESP12 @ 80Mhz |	5.6 (DHT22) |					0.5  |
 
-*)Sensor reading speed should be independent on CPU speed
+*)Sensor reading speed should be independent of CPU speed
 
-*If you can help with testing on various Arduino platforms, open an issue and let me know.*
+*If you can help with testing on various Arduino platforms or various sensor types, open an issue and let me know.*
 
 ## Credits
 
