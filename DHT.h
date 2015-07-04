@@ -1,15 +1,27 @@
 /*
  * Name: libDHT
- * License: MIT license
+ * License: MIT license. No warranty.
  * Location: https://github.com/ADiea/libDHT
+ * Maintainer: ADiea (https://github.com/ADiea)
  *
+ * Descr: Arduino compatible DHT 11/22 lib with dewpoint and heat index functions.
+ *
+ * Features:
+ *	1. Read humidity and temperature in one function call.
+ *	2. Determine heat index in *C or *F
+ *	3. Determine dewpoint with various algorithms(speed vs accuracy)
+ *	4. Determine thermal comfort
+ *		4.1. Empiric comfort function based on comfort profiles
+ *		4.2. Multiple comfort profiles. Default based on http://epb.apogee.net/res/refcomf.asp
+ *		4.3. Determine if it's to cold, hot, humid, dry based on current comfort profile
+ *
+ * x/xx/xx -----:	TODO: Comfort profiles
+ * 7/04/15 ADiea:	[experimental] comfort function; code reorganization
  * 7/02/15 ADiea:	dew point algorithms
- * 6/25/15 ADiea: 	pullup option
- *  	 	 	 	heat index functions
- *  	 	 	 	read temp and humidity in one function call
+ * 6/25/15 ADiea: 	pullup option; read temp and humidity in one function call
  *  	 	 	 	cache converted value for last temp and humid
  * 6/20/15 cloned from https://github.com/adafruit/DHT-sensor-library
- * -/-/-	written by Adafruit Industries
+ * -/--/-- written by Adafruit Industries
  */
 
 #ifndef DHT_H
@@ -59,12 +71,15 @@ enum ComfortState
 class DHT
 {
 public:
-	DHT(uint8_t pin, uint8_t type, boolean pullup = false, uint16_t maxIntervalRead = DSHEET_READ_INTERVAL)
+	DHT(uint8_t pin, uint8_t type, boolean pullup = false,
+			uint16_t maxIntervalRead = DSHEET_READ_INTERVAL)
 		: m_kSensorPin(pin), m_kSensorType(type),
-		  m_bPullupEnabled(pullup), m_firstRead(true), m_lastreadtime(0), m_maxIntervalRead(maxIntervalRead)
+		  m_bPullupEnabled(pullup), m_lastreadtime(0), m_maxIntervalRead(maxIntervalRead)
 	{
-		//In computing these constants the following reference was used http://epb.apogee.net/res/refcomf.asp
-		//It was simplified as 4 straight lines and added very little skew on the vertical lines (+0.1 on x for C,D)
+		//In computing these constants the following reference was used
+		//http://epb.apogee.net/res/refcomf.asp
+		//It was simplified as 4 straight lines and added very little skew on
+		//the vertical lines (+0.1 on x for C,D)
 		//The for points used are(from top left, clock wise)
 		//A(30%, 30*C) B(70%, 26.2*C) C(70.1%, 20.55*C) D(30.1%, 22.22*C)
 		//On the X axis we have the rel humidity in % and on the Y axis the temperature in *C
@@ -85,47 +100,55 @@ public:
 
 	void begin(void);
 
-	float readSensor(bool bReadTemperature, bool bFarenheit = false);
 	float readTemperature(bool bFarenheit = false);
 	float readHumidity(void);
-
 	bool readTempAndHumidity(float* temp, float* humid, bool bFarenheit = false);
 
-	float convertCtoF(float);
-	float convertFtoC(float);
-	float computeHeatIndexC(float tempCelsius, float percentHumidity); //TODO:test accuracy against computeHeatIndexF
-	float computeHeatIndexF(float tempFahrenheit, float percentHumidity);
-	double computeDewPoint(float tempCelsius, float percentHumidity, uint8_t algType = DEW_ACCURATE);
+	inline float convertCtoF(float c){ return c * 1.8f + 32; }
+	inline float convertFtoC(float f){ return (f-32)/1.8f; }
 
-	float comfortRatio(ComfortState* comfort);
+	float getHeatIndexC(float tempCelsius, float percentHumidity);
+	float getHeatIndexF(float tempFahrenheit, float percentHumidity);
+	double getDewPoint(float tempCelsius, float percentHumidity,
+			uint8_t algType = DEW_ACCURATE);
 
-	inline ComfortState isTooHot(float tCelsius, float humidity)
-		{return (tCelsius > (humidity * m_tooHot_m + m_tooHot_b)) ? Comfort_TooHot : Comfort_OK;}
-	inline ComfortState isTooHumid(float tCelsius, float humidity)
-		{return (tCelsius > (humidity * m_tooHumid_m + m_tooHumid_b)) ? Comfort_TooHumid : Comfort_OK;}
-	inline ComfortState isTooCold(float tCelsius, float humidity)
-		{return (tCelsius < (humidity * m_tooCold_m + m_tooHCold_b)) ? Comfort_TooCold : Comfort_OK;}
-	inline ComfortState isTooDry(float tCelsius, float humidity)
-		{return (tCelsius < (humidity * m_tooDry_m + m_tooDry_b)) ? Comfort_TooDry : Comfort_OK;}
+	float getComfortRatio(float tCelsius, float humidity, ComfortState& comfort);
 
-
+	inline bool isTooHot(float tCelsius, float humidity)
+		{return (tCelsius > (humidity * m_tooHot_m + m_tooHot_b));}
+	inline bool isTooHumid(float tCelsius, float humidity)
+		{return (tCelsius > (humidity * m_tooHumid_m + m_tooHumid_b));}
+	inline bool isTooCold(float tCelsius, float humidity)
+		{return (tCelsius < (humidity * m_tooCold_m + m_tooHCold_b));}
+	inline bool isTooDry(float tCelsius, float humidity)
+		{return (tCelsius < (humidity * m_tooDry_m + m_tooDry_b));}
 
 private:
 	boolean read(void);
 	void updateInternalCache();
-
-	boolean m_firstRead;
+	
+	inline float distanceTooHot(float tCelsius, float humidity)
+		{return tCelsius - (humidity * m_tooHot_m + m_tooHot_b);}
+	inline float distanceTooHumid(float tCelsius, float humidity)
+		{return tCelsius - (humidity * m_tooHumid_m + m_tooHumid_b);}
+	inline float distanceTooCold(float tCelsius, float humidity)
+		{return (humidity * m_tooCold_m + m_tooHCold_b) - tCelsius;}
+	inline float distanceTooDry(float tCelsius, float humidity)
+		{return (humidity * m_tooDry_m + m_tooDry_b) - tCelsius;}	
+	
 	uint8_t m_kSensorPin, m_kSensorType;
 	uint8_t m_data[6];
 	unsigned long m_lastreadtime;
 	boolean m_bPullupEnabled;
 
 	//The datasheet advises to read no more than one every 2 seconds.
-	//However if reads are done at greater intervals the sensor's output will be less subject to self-heating
+	//However if reads are done at greater intervals the sensor's output
+	//will be less subject to self-heating
 	//Reference: http://www.kandrsmith.org/RJS/Misc/dht_sht_how_fast.html
 	uint16_t m_maxIntervalRead;
 
-	//Represent the 4 lines dry, humid, hot, cold, using the y = mx + b formula
+	//Represent the 4 line equations:
+	//dry, humid, hot, cold, using the y = mx + b formula
 	float m_tooHot_m, m_tooHot_b;
 	float m_tooCold_m, m_tooHCold_b;
 	float m_tooDry_m, m_tooDry_b;
