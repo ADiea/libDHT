@@ -280,8 +280,9 @@ public:
 	 * 						This can be disabled with the NO_AUTOREFRESH switch
 	 * @param algType - Algorithm type to use. See DHT.c for details
 	 */
-	double getDewPoint(float tempCelsius = LAST_VALUE, float percentHumidity = LAST_VALUE,
-						uint8_t algType = DEW_ACCURATE_FAST
+	double getDewPoint(uint8_t algType = DEW_ACCURATE_FAST,
+						float tempCelsius = LAST_VALUE,
+						float percentHumidity = LAST_VALUE
 #if DHT_TEMPERATURE == 	DHT_RUNTIME
 						, bool bFarenheit = false
 #endif

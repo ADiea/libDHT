@@ -193,9 +193,9 @@ float DHT::getHeatIndex(float tempCelsius/*= LAST_VALUE*/,
 }
 
 
-double DHT::getDewPoint(float tempCelsius/*= LAST_VALUE*/,
-		float percentHumidity/*= LAST_VALUE*/,
-		uint8_t algType /*= DEW_ACCURATE_FAST*/
+double DHT::getDewPoint(uint8_t algType /*= DEW_ACCURATE_FAST*/,
+						float tempCelsius/*= LAST_VALUE*/,
+						float percentHumidity/*= LAST_VALUE*/
 #if DHT_TEMPERATURE == 	DHT_RUNTIME
 						 , bool bFarenheit/* = false*/
 #endif
@@ -206,7 +206,10 @@ double DHT::getDewPoint(float tempCelsius/*= LAST_VALUE*/,
 	{
 #if !NO_AUTOREFRESH
 		if(!read())
+		{
 			return NAN;
+		}
+
 #endif
 		tempCelsius = m_lastTemp;
 		if(LAST_VALUE == percentHumidity)
@@ -449,9 +452,14 @@ bool DHT::read(void)
 	unsigned long time = millis();
 
 	//Determine if it's appropiate to read the sensor, or return data from cache
-	if ((time - m_lastreadtime) < m_minIntervalRead && (errDHT_OK == m_lastError))
+	if ((time - m_lastreadtime) < m_minIntervalRead )
 	{
-		return true; // will use last data from cache
+		if (errDHT_OK == m_lastError)
+			return true; // will use last data from cache
+		else
+		{
+			return false; // must wait
+		}
 	}
 	m_lastreadtime = time;
 
