@@ -83,7 +83,7 @@ void DHT::begin()
 				m_minIntervalRead = READ_INTERVAL_DHT22_DSHEET;
 			}
 			m_wakeupTimeMs = WAKEUP_DHT22;
-			debugf("libDHT: Detected DHT-22 compatible sensor.");
+			Serial.println("libDHT: Detected DHT-22 compatible sensor.");
 
 			if(m_lastError == errDHT_OK)
 				updateInternalCache();
@@ -96,7 +96,7 @@ void DHT::begin()
 				m_minIntervalRead = READ_INTERVAL_DHT11_DSHEET;
 			}
 			m_wakeupTimeMs = WAKEUP_DHT11;
-			debugf("libDHT: Detected DHT-11 compatible sensor.");
+			Serial.println("libDHT: Detected DHT-11 compatible sensor.");
 		}
 	}
 }
@@ -445,7 +445,7 @@ void DHT::updateInternalCache()
 			/*Sensor type unknown yet*/
 			break;
 		default:
-			debugf("(update)libDHT: Unknown sensor type");
+			Serial.println("(update)libDHT: Unknown sensor type");
 			break;
 	}
 }

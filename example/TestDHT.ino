@@ -5,7 +5,7 @@
 
 #include "DHT.h"
 
-#define DHTPIN 2     // what pin we're connected to
+#define DHTPIN 2     // what pin the sensor is connected to
 
 // Connect pin 1 (on the left) of the sensor to +5V
 // NOTE: If using a board with 3.3V logic like an Arduino Due connect pin 1
@@ -32,11 +32,12 @@ void setup() {
   
 }
 
-void loop() {
+void loop() 
+{
   // Wait a few seconds between measurements.
   delay(2000);
 
-  if(!readTempAndHumidity(th))
+  if(!dht.readTempAndHumidity(th))
   {
     Serial.print("Failed to read from DHT sensor for reason: ");
 	switch(dht.getLastError())
@@ -105,7 +106,8 @@ void loop() {
 	Serial.print("Comfort_ColdAndDry");
 	break;
   default:
-	Serial.print("Unknown:%d", cf);
+	Serial.print("Unknown:");
+	Serial.print((int)cf);
 	break;
   };
  
